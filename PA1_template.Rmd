@@ -1,25 +1,81 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+# Reproducible Research: Peer Assessment 1
 
 
 ## Loading and preprocessing the data
+```{r echo=TRUE}
+data = read.csv(file="activity.csv")
+```
 
 
 
 ## What is mean total number of steps taken per day?
-
-
-
+```{r echo=TRUE}
+require(ggplot2)
+totalSteps = aggregate(data$steps, by=list(data$date), FUN=sum)
+names(totalSteps) = c("Date", "Steps")
+med = median(totalSteps$Steps, na.rm=TRUE)
+mu  = mean(totalSteps$Steps, na.rm = TRUE)
+g = ggplot(totalSteps, aes(Steps)) + geom_histogram(binwidth=3000) 
+g = g + geom_vline(xintercept = med, color = "blue")
+g = g + geom_vline(xintercept = mu, color = "red", linetype="longdash")
+g = g + labs(x="Total # of Steps per day") + labs(y = "Frequency")
+print(g)
+med
+mu
+```
 ## What is the average daily activity pattern?
+```{r echo=TRUE}
+require(ggplot2)
+tsData = data[complete.cases(data),]
+tsInterval = aggregate(tsData$steps, by=list(tsData$interval), FUN=mean)
+names(tsInterval) = c("Interval", "avg_steps")
+interval = tsInterval[which.max(tsInterval$avg_steps),1]
+value = max(tsInterval$avg_steps)
+g = ggplot(tsInterval, aes(Interval, avg_steps)) + geom_line()
+g = g + geom_segment(aes(x = 0, y = value, xend = interval, yend = value), 
+                     color = "steelblue", linetype="longdash")
+g = g + geom_segment(aes(x = interval, y = 0 , xend = interval, yend = value), 
+                     color = "steelblue", linetype="longdash")     
+g = g + geom_text(x = interval+220, y = value, 
+                  label = paste0(c(interval),c(", "),c(format(value,digits=4))))
+print(g)
+interval
+```
 
 
 
 ## Imputing missing values
-
+```{r}
+nas = complete.cases(data)
+rowsWithNAs = nrow(data)-sum(nas)
+rowsWithNAs
+newData = data
+newData[is.na(data[,1]),1] = mean(data[,1],na.rm=TRUE)
+totalSteps = aggregate(newData$steps, by=list(newData$date), FUN=sum)
+names(totalSteps) = c("Date", "Steps")
+med = median(totalSteps$Steps, na.rm=TRUE)
+mu  = mean(totalSteps$Steps, na.rm = TRUE)
+g = ggplot(totalSteps, aes(Steps)) + geom_histogram(binwidth=3000) 
+g = g + geom_vline(xintercept = med, color = "blue")
+g = g + geom_vline(xintercept = mu, color = "red", linetype="longdash")
+g = g + labs(x="Total # of Steps per day") + labs(y = "Frequency")
+print(g)
+med
+mu
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+require(car)
+require(lattice)
+days = weekdays(as.Date(newData[,2]),TRUE)
+days = recode(days ,"c('Mon','Tue','Wed','Thu','Fri')='weekday'")
+days = recode(days ,"c('Sat', 'Sun')='weekend'")
+days = as.factor(days)
+newData = cbind(newData, days)
+newData = aggregate(newData$steps, by= list(newData$interval, newData$days), FUN=mean)
+names(newData) = c("Interval", "days", "avg_steps")
+xyplot(avg_steps~Interval|days, layout = c(1,2), data=newData, type="l",
+       ylab="Average Number of Steps")
+```
